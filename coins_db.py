@@ -10,8 +10,7 @@ import coins_web as cw
 
 class Coin_db:
     """
-    Класс для работы с локальной базой данных, 
-    для первоначального создания файла БД запустить start
+    Класс для работы с локальной базой данных
     """
     quality_inf = {0: 'пруф', 1:'АЦ', 2:'БА', 3:'пруф-лайк'}
     
@@ -42,46 +41,13 @@ class Coin_db:
             'mname': 'металл (рус)', 
             'tname': 'тип металла (рус)'
             }
-        self.__create_db()
-        self.inf = f'{self.__db_path} connection successful'
-
-    def __create_db(self, db_path='coin.db'):
-        """
-        Создает пустую локальную БД,
-        """
-        self.connection = sqlite3.connect(db_path)
-        self.cursor = self.connection.cursor()
-        self.cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Coins (
-        id INTEGER PRIMARY KEY,
-        autors TEXT,
-        avers TEXT,
-        revers TEXT,
-        begindate TEXT,
-        cat_num TEXT,
-        comment TEXT,
-        prefix TEXT,
-        sname TEXT,
-        nc_mintage TEXT,
-        mintage TEXT,
-        quality TEXT,
-        weigth TEXT,
-        sq_lenght TEXT,
-        sq_width TEXT,
-        thickness TEXT,
-        diametr TEXT,
-        finemetall TEXT,
-        history_note TEXT,
-        cname TEXT,
-        nominal TEXT,
-        nname TEXT,
-        mname TEXT,
-        tname TEXT
-        )
-        ''')
-        self.connection.commit()
-
-
+        try:
+            self.connection = sqlite3.connect(f'file:{self.__db_path}?mode=rw', uri=True)
+            self.cursor = self.connection.cursor()
+            self.err = f'{self.__db_path} connection successful'
+        except sqlite3.Error as error:
+            self.err = f'{error} (default {self.__db_path})'
+                        
     def check_kn(self, g=str(datetime.now().year)):
         """
         Метод проверяет локальную БД с БД crb.ru по году 
@@ -92,7 +58,7 @@ class Coin_db:
             cat_num_old = self.__get_kn()[g]
         else: 
             cat_num_old = []
-        if set(cat_num_new)-set(cat_num_old):
+        if (set(cat_num_new)-set(cat_num_old)):
             for i in set(cat_num_new)-set(cat_num_old):
                 self.__add_line(cw.getmonetdetailinfo(i))
                 self.__upload_img()
@@ -245,4 +211,54 @@ class Coin_db:
             return f'Db connection closed'
         
     def __repr__(self):
-        return f'{self.inf}'
+        return f'{self.err}'
+        
+        
+def start(year_begin, db_path='coin.db'):
+    """
+    Стартовая функция, создает пустую локальную БД,
+    начинает заполнять ее с года year_begin(1992 - начальный год в БД crb.ru),
+    скачивает и сохраняет локально(/img) изображения монет,
+    выводит в консоль информацию по заполнению БД.
+    Запускать один раз, долее обновлять через метод класса check_kn
+    """
+    connection = sqlite3.connect(db_path)
+    cursor = connection.cursor()       
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Coins (
+    id INTEGER PRIMARY KEY,
+    autors TEXT,
+    avers TEXT,
+    revers TEXT,
+    begindate TEXT,
+    cat_num TEXT,
+    comment TEXT,
+    prefix TEXT,
+    sname TEXT,
+    nc_mintage TEXT,
+    mintage TEXT,
+    quality TEXT,
+    weigth TEXT,
+    sq_lenght TEXT,
+    sq_width TEXT,
+    thickness TEXT,
+    diametr TEXT,
+    finemetall TEXT,
+    history_note TEXT,
+    cname TEXT,
+    nominal TEXT,
+    nname TEXT,
+    mname TEXT,
+    tname TEXT
+    )
+    ''')
+    connection.commit()
+    connection.close()
+    print(f'база данных {db_path} создана, заполняем...')
+    new = Coin_db()
+    for i in range(year_begin, datetime.now().year + 1):
+        print(f'{i} год')
+        new.check_kn(str(i))
+        print(f'OK')
+    print(f'Done')
+
